@@ -8,9 +8,11 @@ import webbrowser
 import time
 import logging
 from datetime import datetime
+import tempfile
 
 # 로그 파일 설정
-log_filename = f"crawler_log_{datetime.now():%Y%m%d_%H%M%S}.txt"
+temp_dir = tempfile.gettempdir()
+log_filename = os.path.join(temp_dir, f"crawler_log_{datetime.now():%Y%m%d_%H%M%S}.txt")
 logging.basicConfig(
     filename=log_filename,
     level=logging.INFO,

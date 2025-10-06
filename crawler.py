@@ -11,6 +11,8 @@ import sys
 import os
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+import tempfile
+
 
 def get_executable_dir():
     """실행 파일이 있는 디렉토리 경로 반환"""
@@ -20,10 +22,6 @@ def get_executable_dir():
     else:
         # 일반 Python으로 실행된 경우
         return os.path.dirname(os.path.abspath(__file__))
-
-
-
-
 
 class PriceCompareCrawler:
     def __init__(self, config_file: str = None, results_file: str = None, site_name: str = None):
@@ -37,7 +35,10 @@ class PriceCompareCrawler:
         if results_file is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")    
             exe_dir = get_executable_dir()
-            self.results_file = os.path.join(exe_dir, f"{site_name}_가격조사_{timestamp}.jsonl")
+
+            # JSONL은 임시 폴더에 저장
+            temp_dir = tempfile.gettempdir()
+            self.results_file = os.path.join(temp_dir, f"{site_name}_가격조사_{timestamp}.jsonl")
             self.csv_file = os.path.join(exe_dir, f"{site_name}_가격조사_{timestamp}.xlsx")
         else:
             self.results_file = results_file
@@ -391,6 +392,14 @@ class PriceCompareCrawler:
             
             wb.save(excel_file)
             print(f"✓ Excel 파일 생성 완료: {excel_file}")
+                # JSONL 파일 삭제
+            try:
+                if os.path.exists(self.results_file):
+                    os.remove(self.results_file)
+                    print(f"임시 파일 삭제됨: {self.results_file}")
+            except:
+                pass  # 삭제 실패해도 무시
+            
             return excel_file
             
         except FileNotFoundError:

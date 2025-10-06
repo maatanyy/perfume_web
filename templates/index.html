@@ -266,13 +266,13 @@
                     progressInfo.textContent = `${data.current} / ${data.total} 제품`;
 
                     if (data.is_crawling) {
-                        statusText.innerHTML = '<span class="spinner"></span>크롤링 진행 중...';
+                        statusText.innerHTML = '<span class="spinner"></span>데이터 추출 진행 중...';
                         ssgBtn.disabled = true;
                         lotteBtn.disabled = true;
                         samsungBtn.disabled = true;
                         downloadBtn.disabled = true;
                     } else if (data.progress === 100) {
-                        statusText.textContent = '✅ 크롤링 완료!';
+                        statusText.textContent = '✅ 데이터 추출 완료!';
                         ssgBtn.disabled = false;
                         lotteBtn.disabled = false;
                         samsungBtn.disabled = false;
@@ -283,7 +283,7 @@
                             checkInterval = null;
                         }
                         
-                        showMessage('크롤링이 완료되었습니다! CSV 파일을 다운로드할 수 있습니다.', 'success');
+                        showMessage('데이터 추출이 완료되었습니다! EXCEL 파일을 다운로드할 수 있습니다.', 'success');
                     } else {
                         statusText.textContent = '대기 중';
                         ssgBtn.disabled = false;
@@ -313,7 +313,7 @@
                 }
             })
             .catch(error => {
-                showMessage('크롤링 시작 실패: ' + error, 'error');
+                showMessage('데이터 추출 시작 실패: ' + error, 'error');
             });
         }
 
