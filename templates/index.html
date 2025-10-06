@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>가격 비교 크롤러</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .status-text {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .progress-info {
+            font-size: 14px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-download {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-download:hover:not(:disabled) {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-reset {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-reset:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛍️ 가격 비교 크롤러</h1>
+        
+        <div class="status-box">
+            <div class="status-text" id="statusText">대기 중</div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar">0%</div>
+            </div>
+            
+            <div class="progress-info" id="progressInfo">0 / 0 제품</div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-start" id="startBtn" onclick="startCrawling()">
+                크롤링 시작
+            </button>
+            <button class="btn-download" id="downloadBtn" onclick="downloadCSV()" disabled>
+                CSV 다운로드
+            </button>
+        </div>
+
+        <button class="btn-reset" id="resetBtn" onclick="resetCrawler()" style="width: 100%; margin-top: 10px;">
+            초기화
+        </button>
+
+        <!-- 종료 버튼 추가 -->
+        <button class="btn-reset" id="shutdownBtn" onclick="shutdownServer()" style="width: 100%; margin-top: 10px; background: #dc3545;">
+            프로그램 종료
+        </button>
+        
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        let checkInterval = null;
+
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            messageEl.style.display = 'block';
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function updateProgress() {
+            fetch('/api/progress')
+                .then(response => response.json())
+                .then(data => {
+                    const progressBar = document.getElementById('progressBar');
+                    const statusText = document.getElementById('statusText');
+                    const progressInfo = document.getElementById('progressInfo');
+                    const downloadBtn = document.getElementById('downloadBtn');
+                    const startBtn = document.getElementById('startBtn');
+
+                    progressBar.style.width = data.progress + '%';
+                    progressBar.textContent = data.progress + '%';
+                    progressInfo.textContent = `${data.current} / ${data.total} 제품`;
+
+                    if (data.is_crawling) {
+                        statusText.innerHTML = '<span class="spinner"></span>크롤링 진행 중...';
+                        startBtn.disabled = true;
+                        downloadBtn.disabled = true;
+                    } else if (data.progress === 100) {
+                        statusText.textContent = '✅ 크롤링 완료!';
+                        startBtn.disabled = false;
+                        downloadBtn.disabled = false;
+                        
+                        if (checkInterval) {
+                            clearInterval(checkInterval);
+                            checkInterval = null;
+                        }
+                        
+                        showMessage('크롤링이 완료되었습니다! CSV 파일을 다운로드할 수 있습니다.', 'success');
+                    } else {
+                        statusText.textContent = '대기 중';
+                        startBtn.disabled = false;
+                        downloadBtn.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('진행율 조회 실패:', error);
+                });
+        }
+
+        function startCrawling() {
+            fetch('/api/start', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showMessage(data.message, 'success');
+                    
+                    // 1초마다 진행율 체크
+                    checkInterval = setInterval(updateProgress, 1000);
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('크롤링 시작 실패: ' + error, 'error');
+            });
+        }
+
+        function downloadCSV() {
+            window.location.href = '/api/download';
+            showMessage('CSV 파일 다운로드를 시작합니다.', 'success');
+        }
+
+        
+        function resetCrawler() {
+            if (!confirm('초기화하시겠습니까?')) {
+                return;
+            }
+
+            fetch('/api/reset', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showMessage(data.message, 'success');
+                    updateProgress();
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('초기화 실패: ' + error, 'error');
+            });
+        }
+        function shutdownServer() {
+        if (confirm('프로그램을 종료하시겠습니까?')) {
+            fetch('/api/shutdown', { method: 'POST' });
+            window.close();
+            }
+        }
+
+        // 페이지 로드 시 상태 확인
+        window.onload = function() {
+            updateProgress();
+        };
+    </script>
+</body>
+</html>
