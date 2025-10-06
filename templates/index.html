@@ -213,11 +213,12 @@
                 삼성 크롤링
             </button>
         </div>
+            
 
         <!-- 다운로드 버튼 -->
         <div class="button-group">
             <button class="btn-download" id="downloadBtn" onclick="downloadCSV()" disabled>
-                CSV 다운로드
+                EXCEL 다운로드
             </button>
         </div>
 
@@ -318,7 +319,7 @@
 
         function downloadCSV() {
             window.location.href = '/api/download';
-            showMessage('CSV 파일 다운로드를 시작합니다.', 'success');
+            showMessage('EXCEL 파일 다운로드를 시작합니다.', 'success');
         }
 
         function resetCrawler() {

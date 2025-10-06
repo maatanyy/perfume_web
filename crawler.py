@@ -9,6 +9,8 @@ import csv
 import re
 import sys
 import os
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 
 def get_executable_dir():
     """실행 파일이 있는 디렉토리 경로 반환"""
@@ -18,6 +20,10 @@ def get_executable_dir():
     else:
         # 일반 Python으로 실행된 경우
         return os.path.dirname(os.path.abspath(__file__))
+
+
+
+
 
 class PriceCompareCrawler:
     def __init__(self, config_file: str = None, results_file: str = None, site_name: str = None):
@@ -32,10 +38,10 @@ class PriceCompareCrawler:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")    
             exe_dir = get_executable_dir()
             self.results_file = os.path.join(exe_dir, f"{site_name}_가격조사_{timestamp}.jsonl")
-            self.csv_file = os.path.join(exe_dir, f"{site_name}_가격조사_{timestamp}.csv")
+            self.csv_file = os.path.join(exe_dir, f"{site_name}_가격조사_{timestamp}.xlsx")
         else:
             self.results_file = results_file
-            self.csv_file = results_file.replace('.jsonl', '.csv')  
+            self.csv_file = results_file.replace('.jsonl', '.xlsx')  
 
         self.progress = 0  # 진행율 저장
         self.total_products = 0  # 전체 제품 수
@@ -111,6 +117,7 @@ class PriceCompareCrawler:
                 total_price = None
             
             return {
+                '상품 url': url,
                 '상품 가격': product_price,
                 '배송비': delivery_price,
                 '배송비 여부': delivery_status,
@@ -119,6 +126,7 @@ class PriceCompareCrawler:
             }
         except Exception as e:
             return {
+                '상품 url': None,
                 '상품 가격': None,
                 '배송비': None,
                 '배송비 여부': None,
@@ -205,6 +213,7 @@ class PriceCompareCrawler:
                 if p['seller'] == 'waffle':
                     waffle_price = p
                     print(f"\n[Waffle - 우리회사]")
+                    print(f"  상품 url: {p['상품 url']}")
                     print(f"  상품 가격: {p['상품 가격']}")
                     print(f"  배송비: {p['배송비']}")
                     print(f"  배송비 여부: {p['배송비 여부']}")
@@ -212,6 +221,7 @@ class PriceCompareCrawler:
                 else:
                     competitor_prices.append(p)
                     print(f"\n[경쟁사 - {p['seller']}]")
+                    print(f"  상품 url: {p['상품 url']}")
                     print(f"  상품 가격: {p['상품 가격']}")
                     print(f"  배송비: {p['배송비']}")
                     print(f"  배송비 여부: {p['배송비 여부']}")
@@ -222,9 +232,14 @@ class PriceCompareCrawler:
                 print(f"\n📊 가격 비교 분석")
                 print(f"   우리 회사와 경쟁사 {len(competitor_prices)}곳의 가격을 비교했습니다.")
 
-    def export_to_excel_format_csv(self, csv_file: str):
-        """제품별 가격 비교표 형식의 CSV 생성 (엑셀 스타일)"""
+
+
+    def export_to_excel_format(self, excel_file: str = None):
+        """Excel 파일 생성 - Sheet1: 전체 결과, Sheet2: 가격 역전 항목"""
         try:
+            if excel_file is None:
+                excel_file = self.csv_file.replace('.csv', '.xlsx')
+            
             results = []
             with jsonlines.open(self.results_file) as reader:
                 for obj in reader:
@@ -234,43 +249,158 @@ class PriceCompareCrawler:
                 print("변환할 데이터가 없습니다.")
                 return
             
-            with open(csv_file, 'w', newline='', encoding='utf-8-sig') as f:
-                writer = csv.writer(f)
-                
-                for result in results:
-                    # 제품 정보 헤더
-                    writer.writerow([f"제품명: {result['product_name']}", f"제품ID: {result['product_id']}"])
-                    writer.writerow([f"추출 시간: {result['timestamp']}"])
-                    writer.writerow([])  # 빈 줄
-                    
-                    # 가격 비교 테이블 헤더
-                    writer.writerow(['판매처', '상품가격', '배송비', '배송비여부', '최종가격'])
-                    
-                    # 데이터 행
-                    for price_info in result['prices']:
-                        seller_name = 'Waffle (우리회사)' if price_info['seller'] == 'waffle' else f"경쟁사 ({price_info['seller']})"
-                        writer.writerow([
-                            seller_name,
-                            price_info.get('상품 가격', 'N/A'),
-                            price_info.get('배송비', 'N/A'),
-                            price_info.get('배송비 여부', 'N/A'),
-                            price_info.get('최종 가격', 'N/A')
-                        ])
-                    
-                    # 제품 간 구분선
-                    writer.writerow([])
-                    writer.writerow(['='*50])
-                    writer.writerow([])
+            # Excel 워크북 생성
+            wb = openpyxl.Workbook()
             
-            print(f"✓ 가격 비교표 CSV 생성 완료: {csv_file}")
-            return csv_file
+            # Sheet1: 전체 결과
+            ws1 = wb.active
+            ws1.title = "전체 결과"
+            
+            # Sheet2: 가격 역전 항목
+            ws2 = wb.create_sheet("가격 역전 항목")
+            
+            # Sheet1 작성
+            row = 1
+            for result in results:
+                cell1 = ws1.cell(row, 1, f"제품명: {result['product_name']}")
+                cell2 = ws1.cell(row, 2, f"제품ID: {result['product_id']}")
+                cell1.font = Font(color="FF0000FF", bold=True)
+                cell2.font = Font(color="FF0000FF", bold=True)
+                row += 1
+                
+                ws1.cell(row, 1, f"추출 시간: {result['timestamp']}")
+                row += 1
+                row += 1  # 빈 줄
+                
+                # 헤더
+                headers = ['판매처', '상품 url', '상품가격', '배송비', '배송비여부', '최종가격']
+                for col, header in enumerate(headers, 1):
+                    cell = ws1.cell(row, col, header)
+                    cell.font = Font(bold=True)
+                    cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+                row += 1
+                
+                # 데이터
+                for price_info in result['prices']:
+                    seller_name = 'Waffle (우리회사)' if price_info['seller'] == 'waffle' else f"경쟁사 ({price_info['seller']})"
+                    ws1.cell(row, 1, seller_name)
+                    ws1.cell(row, 2, price_info.get('상품 url', 'N/A'))
+                    ws1.cell(row, 3, price_info.get('상품 가격', 'N/A'))
+                    ws1.cell(row, 4, price_info.get('배송비', 'N/A'))
+                    ws1.cell(row, 5, price_info.get('배송비 여부', 'N/A'))
+                    ws1.cell(row, 6, price_info.get('최종 가격', 'N/A'))
+                    row += 1
+                
+                row += 2
+
+            
+            # Sheet2 작성: 가격 역전 항목만
+            ws2.cell(1, 1, "가격 역전 항목 (경쟁사가 더 저렴한 경우)")
+            ws2.cell(1, 1).font = Font(bold=True, size=14)
+            row2 = 3
+            
+            found_cheaper = False
+            
+            for result in results:
+                # Waffle 가격 찾기
+                waffle_price = None
+                for price_info in result['prices']:
+                    if price_info['seller'] == 'waffle':
+                        waffle_price = price_info.get('최종 가격')
+                        break
+                
+                if waffle_price is None or not isinstance(waffle_price, (int, float)):
+                    continue
+                
+                # 경쟁사 중 더 저렴한 곳 찾기
+                cheaper_competitors = []
+                for price_info in result['prices']:
+                    if price_info['seller'] != 'waffle':
+                        comp_price = price_info.get('최종 가격')
+                        if comp_price and isinstance(comp_price, (int, float)) and comp_price < waffle_price:
+                            cheaper_competitors.append(price_info)
+                
+                # 가격 역전이 있는 경우만 Sheet2에 추가
+                if cheaper_competitors:
+                    found_cheaper = True
+                    
+                    ws2.cell(row2, 1, f"제품명: {result['product_name']}")
+                    ws2.cell(row2, 1).font = Font(bold=True)
+                    ws2.cell(row2, 2, f"제품ID: {result['product_id']}")
+                    row2 += 1
+
+                    # 헤더
+                    headers = ['판매처', '상품 url', '상품가격', '배송비', '배송비여부', '최종가격', '가격차이']
+                    for col, header in enumerate(headers, 1):
+                        cell = ws2.cell(row2, col, header)
+                        cell.font = Font(bold=True)
+                        cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
+                    row2 += 1
+                    
+                    # Waffle 가격 (참고용)
+                    ws2.cell(row2, 1, "Waffle (우리회사)")
+                    for price_info in result['prices']:
+                        if price_info['seller'] == 'waffle':
+                            ws2.cell(row2, 2, price_info.get('상품 url', 'N/A'))
+                            ws2.cell(row2, 3, price_info.get('상품 가격', 'N/A'))
+                            ws2.cell(row2, 4, price_info.get('배송비', 'N/A'))
+                            ws2.cell(row2, 5, price_info.get('배송비 여부', 'N/A'))
+                            ws2.cell(row2, 6, waffle_price)
+                            ws2.cell(row2, 7, "-")
+                            break
+                    row2 += 1
+                    
+                    # 더 저렴한 경쟁사들
+                    for comp in cheaper_competitors:
+                        seller_name = f"경쟁사 ({comp['seller']})"
+                        comp_price = comp.get('최종 가격')
+                        price_diff = waffle_price - comp_price
+                        
+                        ws2.cell(row2, 1, seller_name)
+                        ws2.cell(row2, 2, comp.get('상품 url', 'N/A'))
+                        ws2.cell(row2, 3, comp.get('상품 가격', 'N/A'))
+                        ws2.cell(row2, 4, comp.get('배송비', 'N/A'))
+                        ws2.cell(row2, 5, comp.get('배송비 여부', 'N/A'))
+                        ws2.cell(row2, 6, comp_price)
+                        ws2.cell(row2, 7, f"-{price_diff}원 저렴")
+                        
+                        # 빨간색 강조
+                        ws2.cell(row2, 6).font = Font(color="FF0000", bold=True)
+                        ws2.cell(row2, 7).font = Font(color="FF0000", bold=True)
+                        row2 += 1
+                    
+                    row2 += 2
+            
+            if not found_cheaper:
+                ws2.cell(row2, 1, "가격 역전 항목이 없습니다. 모든 제품이 경쟁사보다 저렴하거나 동일합니다.")
+                ws2.cell(row2, 1).font = Font(color="008000", bold=True)
+            
+            # 열 너비 자동 조정
+            for ws in [ws1, ws2]:
+                for column in ws.columns:
+                    max_length = 0
+                    column = list(column)
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)
+                    ws.column_dimensions[column[0].column_letter].width = adjusted_width
+            
+            wb.save(excel_file)
+            print(f"✓ Excel 파일 생성 완료: {excel_file}")
+            return excel_file
             
         except FileNotFoundError:
-            print(f"{self.results_file} 파일이 없습니다. 먼저 크롤링을 실행하세요.")
+            print(f"{self.results_file} 파일이 없습니다.")
             return None
         except Exception as e:
-            print(f"CSV 변환 중 에러 발생: {e}")
-            return None
+            print(f"Excel 변환 중 에러 발생: {e}")
+            import traceback
+            traceback.print_exc()
+            return None 
     
     def get_latest_prices(self, product_id: int) -> Dict:
         """특정 제품의 최신 가격 정보 조회"""
@@ -300,7 +430,7 @@ if __name__ == "__main__":
 
     # csv로 변환
     print("\n=== CSV 변환 ===")
-    crawler.export_to_excel_format_csv(final_file+".csv")
+    crawler.export_to_excel_format()
 
     # 특정 제품 조회
     print("\n=== 특정 제품 조회 ===")

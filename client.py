@@ -78,8 +78,8 @@ def start_crawling(site="ssg"):
             try:
                 logging.info(f"{site} 크롤링 시작")
                 crawler.run_crawling()
-                logging.info(f"{site} CSV 변환 시작")
-                crawler.export_to_excel_format_csv(crawler.csv_file)
+                logging.info(f"{site} Excel 변환 시작")
+                crawler.export_to_excel_format()
                 logging.info(f"{site} 크롤링 완료")
             except Exception as e:
                 print(f"크롤링 에러: {e}")
@@ -122,20 +122,20 @@ def get_progress():
 
 @app.route('/api/download', methods=['GET'])
 def download_csv():
-    """CSV 파일 다운로드"""
+    """Excel 파일 다운로드"""
     if crawler is None:
         return jsonify({'status': 'error', 'message': '데이터 추출을 먼저 실행하세요.'})
     
-    csv_file = crawler.csv_file  # csv_file 사용
+    excel_file = crawler.csv_file  # 실제로는 .xlsx
     
-    if not os.path.exists(csv_file):
-        return jsonify({'status': 'error', 'message': 'CSV 파일이 없습니다.'})
+    if not os.path.exists(excel_file):
+        return jsonify({'status': 'error', 'message': 'Excel 파일이 없습니다.'})
     
     return send_file(
-        csv_file,
-        mimetype='text/csv',
+        excel_file,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name=os.path.basename(csv_file)
+        download_name=os.path.basename(excel_file)
     )
 
 @app.route('/api/reset', methods=['POST'])
