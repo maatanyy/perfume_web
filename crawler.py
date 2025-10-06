@@ -20,16 +20,23 @@ def get_executable_dir():
         return os.path.dirname(os.path.abspath(__file__))
 
 class PriceCompareCrawler:
-    def __init__(self, config_file: str = 'perfume_list.jsonl', results_file: str = None):
+    def __init__(self, config_file: str = None, results_file: str = None, site_name: str = None):
+
+        self.site_name = site_name
+        
+        if config_file is None:
+            config_file = f"{site_name}_input_list.jsonl"
         self.config_file = config_file
+
         if results_file is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")    
             exe_dir = get_executable_dir()
-            self.results_file = os.path.join(exe_dir, f"신세계_가격조사_{timestamp}.jsonl")
-            self.csv_file = os.path.join(exe_dir, f"신세계_가격조사_{timestamp}.csv")
+            self.results_file = os.path.join(exe_dir, f"{site_name}_가격조사_{timestamp}.jsonl")
+            self.csv_file = os.path.join(exe_dir, f"{site_name}_가격조사_{timestamp}.csv")
         else:
             self.results_file = results_file
             self.csv_file = results_file.replace('.jsonl', '.csv')  
+
         self.progress = 0  # 진행율 저장
         self.total_products = 0  # 전체 제품 수
         self.current_product = 0  # 현재 처리 중인 제품 번호
@@ -53,7 +60,7 @@ class PriceCompareCrawler:
             'percentage': self.progress
         }
     
-    def crawl_price(self, url: str) -> Dict:
+    def crawl_ssg(self, url: str) -> Dict:
         """SSG에서 가격 정보 크롤링"""
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -119,7 +126,18 @@ class PriceCompareCrawler:
                 '에러 발생': str(e),
                 '추출 날짜': datetime.now().isoformat()
             }
-    
+
+    def crawl_price(self, url: str) -> Dict:
+        """현재 사이트에 맞는 크롤링 함수 호출"""
+        if self.site_name == 'ssg':
+            return self.crawl_ssg(url)
+        elif self.site_name == 'lotte':
+            return self.crawl_lotte(url)
+        elif self.site_name == 'samsung':
+            return self.crawl_samsung(url)
+
+
+
     def run_crawling(self):
         """전체 제품에 대해 크롤링 실행"""
         products = self.load_products()
@@ -147,7 +165,7 @@ class PriceCompareCrawler:
                     waffle_data = self.crawl_price(product['waffle']['url'])
                     result['prices'].append({
                         'seller': 'waffle',
-                        **waffle_data
+                        **waffle_data   
                     })
                     time.sleep(1)
                 

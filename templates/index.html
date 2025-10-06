@@ -81,7 +81,7 @@
         .button-group {
             display: flex;
             gap: 15px;
-            margin-top: 20px;
+            margin-top: 10px;
         }
 
         button {
@@ -95,14 +95,26 @@
             transition: all 0.3s ease;
         }
 
-        .btn-start {
+        .btn-ssg {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
 
-        .btn-start:hover:not(:disabled) {
+        .btn-lotte {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .btn-samsung {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .btn-ssg:hover:not(:disabled),
+        .btn-lotte:hover:not(:disabled),
+        .btn-samsung:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
 
         .btn-download {
@@ -123,6 +135,15 @@
 
         .btn-reset:hover:not(:disabled) {
             background: #5a6268;
+        }
+
+        .btn-shutdown {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-shutdown:hover:not(:disabled) {
+            background: #c82333;
         }
 
         button:disabled {
@@ -180,21 +201,33 @@
             <div class="progress-info" id="progressInfo">0 / 0 제품</div>
         </div>
 
+        <!-- 사이트별 크롤링 버튼 -->
         <div class="button-group">
-            <button class="btn-start" id="startBtn" onclick="startCrawling()">
-                크롤링 시작
+            <button class="btn-ssg" id="startBtnSSG" onclick="startCrawling('ssg')">
+                SSG 크롤링
             </button>
+            <button class="btn-lotte" id="startBtnLotte" onclick="startCrawling('lotte')">
+                롯데 크롤링
+            </button>
+            <button class="btn-samsung" id="startBtnSamsung" onclick="startCrawling('samsung')">
+                삼성 크롤링
+            </button>
+        </div>
+
+        <!-- 다운로드 버튼 -->
+        <div class="button-group">
             <button class="btn-download" id="downloadBtn" onclick="downloadCSV()" disabled>
                 CSV 다운로드
             </button>
         </div>
 
+        <!-- 초기화 버튼 -->
         <button class="btn-reset" id="resetBtn" onclick="resetCrawler()" style="width: 100%; margin-top: 10px;">
             초기화
         </button>
 
-        <!-- 종료 버튼 추가 -->
-        <button class="btn-reset" id="shutdownBtn" onclick="shutdownServer()" style="width: 100%; margin-top: 10px; background: #dc3545;">
+        <!-- 종료 버튼 -->
+        <button class="btn-shutdown" id="shutdownBtn" onclick="shutdownServer()" style="width: 100%; margin-top: 10px;">
             프로그램 종료
         </button>
         
@@ -223,7 +256,9 @@
                     const statusText = document.getElementById('statusText');
                     const progressInfo = document.getElementById('progressInfo');
                     const downloadBtn = document.getElementById('downloadBtn');
-                    const startBtn = document.getElementById('startBtn');
+                    const ssgBtn = document.getElementById('startBtnSSG');
+                    const lotteBtn = document.getElementById('startBtnLotte');
+                    const samsungBtn = document.getElementById('startBtnSamsung');
 
                     progressBar.style.width = data.progress + '%';
                     progressBar.textContent = data.progress + '%';
@@ -231,11 +266,15 @@
 
                     if (data.is_crawling) {
                         statusText.innerHTML = '<span class="spinner"></span>크롤링 진행 중...';
-                        startBtn.disabled = true;
+                        ssgBtn.disabled = true;
+                        lotteBtn.disabled = true;
+                        samsungBtn.disabled = true;
                         downloadBtn.disabled = true;
                     } else if (data.progress === 100) {
                         statusText.textContent = '✅ 크롤링 완료!';
-                        startBtn.disabled = false;
+                        ssgBtn.disabled = false;
+                        lotteBtn.disabled = false;
+                        samsungBtn.disabled = false;
                         downloadBtn.disabled = false;
                         
                         if (checkInterval) {
@@ -246,7 +285,9 @@
                         showMessage('크롤링이 완료되었습니다! CSV 파일을 다운로드할 수 있습니다.', 'success');
                     } else {
                         statusText.textContent = '대기 중';
-                        startBtn.disabled = false;
+                        ssgBtn.disabled = false;
+                        lotteBtn.disabled = false;
+                        samsungBtn.disabled = false;
                         downloadBtn.disabled = true;
                     }
                 })
@@ -255,8 +296,8 @@
                 });
         }
 
-        function startCrawling() {
-            fetch('/api/start', {
+        function startCrawling(site) {
+            fetch('/api/start/' + site, {
                 method: 'POST'
             })
             .then(response => response.json())
@@ -280,7 +321,6 @@
             showMessage('CSV 파일 다운로드를 시작합니다.', 'success');
         }
 
-        
         function resetCrawler() {
             if (!confirm('초기화하시겠습니까?')) {
                 return;
@@ -302,10 +342,11 @@
                 showMessage('초기화 실패: ' + error, 'error');
             });
         }
+
         function shutdownServer() {
-        if (confirm('프로그램을 종료하시겠습니까?')) {
-            fetch('/api/shutdown', { method: 'POST' });
-            window.close();
+            if (confirm('프로그램을 종료하시겠습니까?')) {
+                fetch('/api/shutdown', { method: 'POST' });
+                window.close();
             }
         }
 

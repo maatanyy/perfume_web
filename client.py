@@ -50,30 +50,37 @@ def index():
     """메인 페이지"""
     return render_template('index.html')
 
-@app.route('/api/start', methods=['POST'])
-def start_crawling():
-    """크롤링 시작"""
+@app.route('/api/start/<site>', methods=['POST'])
+def start_crawling(site="ssg"):
+    """크롤링 시작 - 싸이트별"""
     global crawler, crawling_thread, is_crawling
     
-    logging.info("=== 크롤링 시작 요청 받음 ===")
+    logging.info(f"==={site} 크롤링 시작 요청 ===")
 
     if is_crawling:
         return jsonify({'status': 'error', 'message': '이미 크롤링이 진행 중입니다.'})
     
     try:
-        # 내장된 JSONL 파일 경로 사용
-        config_file = resource_path('perfume_list.jsonl')
+        # site 별 config 경로로
+        config_file = resource_path(f'{site}_input_list.jsonl')
         logging.info(f"설정 파일 경로: {config_file}")
         logging.info(f"파일 존재 여부: {os.path.exists(config_file)}")
-        crawler = PriceCompareCrawler(config_file=config_file)
+
+        if not os.path.exists(config_file):
+            return jsonify({'status': 'error', 'message': f'{site}_input.jsonl 파일이 존재하지 않습니다다.'})
+
+        crawler = PriceCompareCrawler(config_file=config_file, site_name =site)
         is_crawling = True
         
         # 백그라운드에서 크롤링 실행
         def run_crawler():
             global is_crawling
             try:
+                logging.info(f"{site} 크롤링 시작")
                 crawler.run_crawling()
+                logging.info(f"{site} CSV 변환 시작")
                 crawler.export_to_excel_format_csv(crawler.csv_file)
+                logging.info(f"{site} 크롤링 완료")
             except Exception as e:
                 print(f"크롤링 에러: {e}")
             finally:
@@ -82,9 +89,10 @@ def start_crawling():
         crawling_thread = threading.Thread(target=run_crawler)
         crawling_thread.start()
         
-        return jsonify({'status': 'success', 'message': '크롤링이 시작되었습니다.'})
+        return jsonify({'status': 'success', 'message': f'{site.upper()} 크롤링이 시작되었습니다.'})
     
     except Exception as e:
+        logging.error(f"크롤러 생성 실패: {e}", exc_info=True)
         is_crawling = False
         return jsonify({'status': 'error', 'message': str(e)})
 
