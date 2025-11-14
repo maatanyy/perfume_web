@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>가격 비교 크롤러</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .login-section {
+            display: none;
+        }
+
+        .login-section.active {
+            display: block;
+        }
+
+        .main-section {
+            display: none;
+        }
+
+        .main-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .status-text {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .progress-info {
+            font-size: 20px;
+            color: black;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-ssg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-ssg-shoping {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .btn-samsung {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .btn-download {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-cancel {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-logout {
+            background: #6c757d;
+            color: white;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 10px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .tab-button.active {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛍️ 가격 비교 크롤러</h1>
+        
+        <!-- 로그인 섹션 -->
+        <div id="loginSection" class="login-section active">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="showLogin()">로그인</button>
+                <button class="tab-button" onclick="showRegister()">회원가입</button>
+            </div>
+            
+            <div id="loginForm">
+                <div class="form-group">
+                    <label>사용자명</label>
+                    <input type="text" id="loginUsername" />
+                </div>
+                <div class="form-group">
+                    <label>비밀번호</label>
+                    <input type="password" id="loginPassword" />
+                </div>
+                <button class="btn-primary" onclick="login()">로그인</button>
+            </div>
+            
+            <div id="registerForm" style="display: none;">
+                <div class="form-group">
+                    <label>아이디</label>
+                    <input type="text" id="registerUsername" />
+                </div>
+                <div class="form-group">
+                    <label>비밀번호</label>
+                    <input type="password" id="registerPassword" />
+                </div>
+                <button class="btn-primary" onclick="register()">회원가입</button>
+            </div>
+        </div>
+        
+        <!-- 메인 섹션 -->
+        <div id="mainSection" class="main-section">
+            <button class="btn-logout" onclick="logout()" style="width: 100%; margin-bottom: 20px;">로그아웃</button>
+            
+            <div class="status-box">
+                <div class="status-text" id="statusText">대기 중</div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar">0%</div>
+                </div>
+                <div class="progress-info" id="progressInfo">0 / 0 제품</div>
+                <div class="progress-info" id="timeInfo">소요 시간 : <span id="elapsed_time">00:00:00</span></div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-ssg" id="startBtnSSG" onclick="startCrawling('ssg')">
+                    SSG 크롤링
+                </button>
+                <button class="btn-ssg-shoping" id="startBtnSSGShoping" onclick="startCrawling('ssg_shoping')">
+                    신세계 쇼핑 크롤링
+                </button>
+                <button class="btn-samsung" id="startBtnSamsung" onclick="startCrawling('samsung')">
+                    삼성 크롤링
+                </button>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-download" id="downloadBtn" onclick="downloadCSV()" disabled>
+                    EXCEL 다운로드
+                </button>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-cancel" id="cancelBtn" onclick="cancelCrawling()" disabled>
+                    작업 취소
+                </button>
+            </div>
+        </div>
+        
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        let checkInterval = null;
+
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            messageEl.style.display = 'block';
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 5000);
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('loginSection').classList.remove('active');
+                    document.getElementById('mainSection').classList.add('active');
+                    showMessage('로그인 성공', 'success');
+                    updateProgress();
+                    checkInterval = setInterval(updateProgress, 1000);
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('로그인 실패: ' + error, 'error');
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+
+            if (!username || !password) {
+                showMessage('아이디와 비밀번호를 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showMessage('회원가입이 완료되었습니다.', 'success');
+                    setTimeout(() => showLogin(), 2000);
+                } else {
+                    showMessage(data.detail || '회원가입 실패', 'error');
+                }
+            } catch (error) {
+                showMessage('회원가입 실패: ' + error, 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', {method: 'POST'});
+                document.getElementById('loginSection').classList.add('active');
+                document.getElementById('mainSection').classList.remove('active');
+                if (checkInterval) {
+                    clearInterval(checkInterval);
+                    checkInterval = null;
+                }
+            } catch (error) {
+                console.error('로그아웃 실패:', error);
+            }
+        }
+
+        function updateProgress() {
+            fetch('/api/progress')
+                .then(response => response.json())
+                .then(data => {
+                    const progressBar = document.getElementById('progressBar');
+                    const statusText = document.getElementById('statusText');
+                    const progressInfo = document.getElementById('progressInfo');
+                    const elapsed_time = document.getElementById('elapsed_time');
+                    const downloadBtn = document.getElementById('downloadBtn');
+                    const ssgBtn = document.getElementById('startBtnSSG');
+                    const ssgShopingBtn = document.getElementById('startBtnSSGShoping');
+                    const samsungBtn = document.getElementById('startBtnSamsung');
+                    const cancelBtn = document.getElementById('cancelBtn');
+
+                    progressBar.style.width = data.progress + '%';
+                    progressBar.textContent = data.progress + '%';
+                    progressInfo.textContent = `${data.current} / ${data.total} 제품`;
+                    elapsed_time.textContent = formatTime(data.elapsed_time);
+
+                    if (data.status === 'cancelling') {
+                        statusText.innerHTML = '<span class="spinner"></span>작업 취소 중...';
+                        ssgBtn.disabled = true;
+                        ssgShopingBtn.disabled = true;
+                        samsungBtn.disabled = true;
+                        downloadBtn.disabled = true;
+                        if (cancelBtn) cancelBtn.disabled = true;
+                    } else if (data.is_crawling) {
+                        statusText.innerHTML = '<span class="spinner"></span>데이터 추출 진행 중...';
+                        ssgBtn.disabled = true;
+                        ssgShopingBtn.disabled = true;
+                        samsungBtn.disabled = true;
+                        downloadBtn.disabled = true;
+                        if (cancelBtn) cancelBtn.disabled = false;
+                    } else if (data.progress === 100 && data.status === 'completed') {
+                        statusText.textContent = '✅ 데이터 추출 완료!';
+                        ssgBtn.disabled = false;
+                        ssgShopingBtn.disabled = false;
+                        samsungBtn.disabled = false;
+                        downloadBtn.disabled = false;
+                        if (cancelBtn) cancelBtn.disabled = true;
+                        showMessage('데이터 추출이 완료되었습니다! EXCEL 파일을 다운로드할 수 있습니다.', 'success');
+                    } else if (data.status === 'cancelled') {
+                        statusText.textContent = '⏹ 작업이 취소되었습니다.';
+                        ssgBtn.disabled = false;
+                        ssgShopingBtn.disabled = false;
+                        samsungBtn.disabled = false;
+                        downloadBtn.disabled = true;
+                        if (cancelBtn) cancelBtn.disabled = true;
+                    } else {
+                        statusText.textContent = '대기 중';
+                        ssgBtn.disabled = false;
+                        ssgShopingBtn.disabled = false;
+                        samsungBtn.disabled = false;
+                        downloadBtn.disabled = true;
+                        if (cancelBtn) cancelBtn.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('진행율 조회 실패:', error);
+                });
+        }
+
+        async function cancelCrawling() {
+            try {
+                const response = await fetch('/api/cancel', { method: 'POST' });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showMessage('작업 취소를 요청했습니다.', 'success');
+                    updateProgress();
+                } else {
+                    showMessage(data.message || '작업 취소 실패', 'error');
+                }
+            } catch (error) {
+                showMessage('작업 취소 실패: ' + error, 'error');
+            }
+        }
+
+        function startCrawling(site) {
+            fetch('/api/start/' + site, {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showMessage(data.message, 'success');
+                        if (!checkInterval) {
+                            checkInterval = setInterval(updateProgress, 1000);
+                        }
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('크롤링 시작 실패: ' + error, 'error');
+                });
+        }
+
+        function downloadCSV() {
+            window.location.href = '/api/download';
+            showMessage('EXCEL 파일 다운로드를 시작합니다.', 'success');
+        }
+    </script>
+</body>
+</html>

@@ -46,6 +46,8 @@ CORS(app)
 crawler = None
 crawling_thread = None
 is_crawling = False
+start_time = None  # 크롤링 시작 시간 추가
+
 
 @app.route('/')
 def index():
@@ -55,7 +57,7 @@ def index():
 @app.route('/api/start/<site>', methods=['POST'])
 def start_crawling(site="ssg"):
     """크롤링 시작 - 싸이트별"""
-    global crawler, crawling_thread, is_crawling
+    global crawler, crawling_thread, is_crawling, start_time
     
     logging.info(f"==={site} 크롤링 시작 요청 ===")
 
@@ -73,6 +75,7 @@ def start_crawling(site="ssg"):
 
         crawler = PriceCompareCrawler(config_file=config_file, site_name =site)
         is_crawling = True
+        start_time = time.time()  # 시작 시간 기록
         
         # 백그라운드에서 크롤링 실행
         def run_crawler():
@@ -101,7 +104,7 @@ def start_crawling(site="ssg"):
 @app.route('/api/progress', methods=['GET'])
 def get_progress():
     """현재 진행율 조회"""
-    global crawler, is_crawling
+    global crawler, is_crawling, start_time
     
     if crawler is None:
         return jsonify({
@@ -109,17 +112,24 @@ def get_progress():
             'progress': 0,
             'current': 0,
             'total': 0,
-            'is_crawling': False
+            'is_crawling': False,
+            'elapsed_time': 0
         })
     
     progress_data = crawler.get_progress()
+
+    # 경과 시간 계산
+    elapsed_time = 0
+    if start_time is not None:
+        elapsed_time = int(time.time() - start_time)
     
     return jsonify({
         'status': 'running' if is_crawling else 'completed',
         'progress': progress_data['percentage'],
         'current': progress_data['current'],
         'total': progress_data['total'],
-        'is_crawling': is_crawling
+        'is_crawling': is_crawling, 
+        'elapsed_time': elapsed_time  # 경과 시간 추가 (초 단위)
     })
 
 @app.route('/api/download', methods=['GET'])

@@ -5,7 +5,7 @@ a = Analysis(
     ['client.py'],
     pathex=[],
     binaries=[],
-    datas=[('templates', 'templates'), ('perfume_list.jsonl', '.')],
+    datas=[('templates', 'templates'), ('*.jsonl', '.')],
     hiddenimports=['crawler'],
     hookspath=[],
     hooksconfig={},

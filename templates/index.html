@@ -73,8 +73,8 @@
         }
 
         .progress-info {
-            font-size: 14px;
-            color: #999;
+            font-size: 20px;
+            color: black;
             margin-top: 5px;
         }
 
@@ -100,7 +100,7 @@
             color: white;
         }
 
-        .btn-lotte {
+        .btn-ssg-shoping {
             background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
             color: white;
         }
@@ -111,7 +111,7 @@
         }
 
         .btn-ssg:hover:not(:disabled),
-        .btn-lotte:hover:not(:disabled),
+        .btn-ssg-shoping:hover:not(:disabled),
         .btn-samsung:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
@@ -199,6 +199,7 @@
             </div>
             
             <div class="progress-info" id="progressInfo">0 / 0 제품</div>
+            <div class="progress-info" id="timeInfo">소요 시간 : <span id="elapsed_time">00:00:00</span></div>
         </div>
 
         <!-- 사이트별 크롤링 버튼 -->
@@ -206,8 +207,8 @@
             <button class="btn-ssg" id="startBtnSSG" onclick="startCrawling('ssg')">
                 SSG 크롤링
             </button>
-            <button class="btn-lotte" id="startBtnLotte" onclick="startCrawling('lotte')">
-                롯데 크롤링
+            <button class="btn-ssg-shoping" id="startBtnSSGShoping" onclick="startCrawling('ssg_shoping')">
+                신세계 쇼핑 크롤링
             </button>
             <button class="btn-samsung" id="startBtnSamsung" onclick="startCrawling('samsung')">
                 삼성 크롤링
@@ -238,6 +239,14 @@
     <script>
         let checkInterval = null;
 
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+    
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
         function showMessage(text, type) {
             const messageEl = document.getElementById('message');
             messageEl.textContent = text;
@@ -256,25 +265,27 @@
                     const progressBar = document.getElementById('progressBar');
                     const statusText = document.getElementById('statusText');
                     const progressInfo = document.getElementById('progressInfo');
+                    const elapsed_time = document.getElementById('elapsed_time');
                     const downloadBtn = document.getElementById('downloadBtn');
                     const ssgBtn = document.getElementById('startBtnSSG');
-                    const lotteBtn = document.getElementById('startBtnLotte');
+                    const ssgShopingBtn = document.getElementById('startBtnSSGShoping');
                     const samsungBtn = document.getElementById('startBtnSamsung');
 
                     progressBar.style.width = data.progress + '%';
                     progressBar.textContent = data.progress + '%';
                     progressInfo.textContent = `${data.current} / ${data.total} 제품`;
+                    elapsed_time.textContent = formatTime(data.elapsed_time);
 
                     if (data.is_crawling) {
                         statusText.innerHTML = '<span class="spinner"></span>데이터 추출 진행 중...';
                         ssgBtn.disabled = true;
-                        lotteBtn.disabled = true;
+                        ssgShopingBtn.disabled = true;
                         samsungBtn.disabled = true;
                         downloadBtn.disabled = true;
                     } else if (data.progress === 100) {
                         statusText.textContent = '✅ 데이터 추출 완료!';
                         ssgBtn.disabled = false;
-                        lotteBtn.disabled = false;
+                        ssgShopingBtn.disabled = false;
                         samsungBtn.disabled = false;
                         downloadBtn.disabled = false;
                         
@@ -287,7 +298,7 @@
                     } else {
                         statusText.textContent = '대기 중';
                         ssgBtn.disabled = false;
-                        lotteBtn.disabled = false;
+                        ssgShopingBtn.disabled = false;
                         samsungBtn.disabled = false;
                         downloadBtn.disabled = true;
                     }
