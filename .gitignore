@@ -38,10 +38,4 @@ dist/
 Thumbs.db
 
 # Data files
-*.jsonl
-*.xlsx
-*.csv
-
 # Server specific
-server/price_crawler.db
-server/static/
