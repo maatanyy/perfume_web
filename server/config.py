@@ -24,9 +24,17 @@ def get_data_dir():
         return os.path.abspath(data_dir)
 
     project_root = Path(get_project_root())
-    default_data_dir = project_root / "data"
-    if default_data_dir.exists():
-        return str(default_data_dir.resolve())
+    server_dir = Path(__file__).resolve().parent
+
+    candidates = [
+        project_root / "data",
+        project_root / "server" / "data",
+        server_dir / "data",
+    ]
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
 
     return str(project_root)
 
