@@ -115,32 +115,31 @@ def start_crawling(
     
     # 설정 파일 경로 확인 (환경 변수 또는 상대 경로)
     data_dir = get_data_dir()
-    config_file = os.path.join(data_dir, f"{site_name}_input_list.jsonl")
     logger.info("Preparing to start %s crawl. DATA_DIR=%s", site_name, data_dir)
-    
-    # 파일이 없으면 여러 위치에서 찾기
+
+    config_file = os.path.join(data_dir, f"{site_name}_input_list.jsonl")
+    base_dir = os.path.dirname(__file__)
     search_paths = [
-        config_file,  # DATA_DIR 기준
-        os.path.join(os.getcwd(), f"{site_name}_input_list.jsonl"),  # 현재 작업 디렉토리
-        f"{site_name}_input_list.jsonl",  # 상대 경로
+        config_file,
+        os.path.join(os.getcwd(), f"{site_name}_input_list.jsonl"),
+        os.path.join(base_dir, "data", f"{site_name}_input_list.jsonl"),
+        os.path.join(os.path.dirname(base_dir), "data", f"{site_name}_input_list.jsonl"),
     ]
-    logger.info("Search paths for %s data: %s", site_name, search_paths)
-    
-    found_file = None
-    for path in search_paths:
-        if os.path.exists(path):
-            found_file = os.path.abspath(path)
-            break
-    
+    logger.info("Search paths for %s: %s", site_name, search_paths)
+
+    found_file = next((os.path.abspath(p) for p in search_paths if os.path.exists(p)), None)
+
     if not found_file:
-        logger.error("Failed to locate %s data file. Checked: %s", site_name, search_paths)
+        logger.error("Failed to locate %s file. Checked: %s", site_name, search_paths)
         raise HTTPException(
             status_code=404,
-            detail=f"{site_name}_input_list.jsonl 파일을 찾을 수 없습니다. "
-                   f"확인한 경로: {', '.join(search_paths)}. "
-                   f"환경 변수 DATA_DIR을 /opt/render/project/src/data 로 설정했는지 확인하세요."
+            detail=(
+                f"{site_name}_input_list.jsonl 파일을 찾을 수 없습니다. "
+                f"확인한 경로: {', '.join(search_paths)}. "
+                f"DATA_DIR 환경 변수 또는 data 폴더 위치를 다시 확인해주세요."
+            ),
         )
-    
+
     config_file = found_file
     
     # 새 작업 생성
@@ -195,22 +194,31 @@ def get_progress(
         )
     
     # 크롤러 인스턴스에서 진행률 가져오기 (실행 중일 때만)
-    if job.status in ("running", "cancelling") and current_user.id in crawler_instances and job.id in crawler_instances[current_user.id]:
+    if (
+        job.status in ("running", "cancelling")
+        and current_user.id in crawler_instances
+        and job.id in crawler_instances[current_user.id]
+    ):
         crawler = crawler_instances[current_user.id][job.id]
         progress_data = crawler.get_progress()
         job.progress = progress_data["percentage"]
         job.current_product = progress_data["current"]
         db.commit()
     
-    # 경과 시간 계산
-    elapsed_time = 0
-    if job.completed_at:
-        # 완료된 경우: 시작부터 완료까지의 시간
-        if job.started_at:
-            elapsed_time = int((job.completed_at - job.started_at).total_seconds())
-    elif job.started_at:
-        # 진행 중인 경우: 시작부터 현재까지의 시간
-        elapsed_time = int((datetime.utcnow() - job.started_at).total_seconds())
+    # 경과 시간 계산 (timezone-aware 안전 처리)
+    def _to_naive(dt: Optional[datetime]) -> Optional[datetime]:
+        if dt is None:
+            return None
+        return dt.astimezone(tz=None).replace(tzinfo=None) if dt.tzinfo else dt
+
+    start = _to_naive(job.started_at)
+    end = _to_naive(job.completed_at)
+
+    if start:
+        reference_end = end or datetime.utcnow()
+        elapsed_time = max(0, int((reference_end - start).total_seconds()))
+    else:
+        elapsed_time = 0
     
     return CrawlingProgress(
         status=job.status,
