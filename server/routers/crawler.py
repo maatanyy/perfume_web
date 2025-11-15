@@ -8,6 +8,7 @@ import time
 import threading
 from datetime import datetime
 import sys
+import logging
 
 # 프로젝트 루트 경로 추가
 project_root = os.path.join(os.path.dirname(__file__), '../..')
@@ -25,6 +26,7 @@ router = APIRouter(prefix="/api/crawler", tags=["crawler"])
 
 # 전역 크롤러 상태 관리
 crawler_instances = {}  # {user_id: {job_id: crawler_instance}}
+logger = logging.getLogger(__name__)
 
 
 def run_crawler_task(
@@ -114,6 +116,7 @@ def start_crawling(
     # 설정 파일 경로 확인 (환경 변수 또는 상대 경로)
     data_dir = get_data_dir()
     config_file = os.path.join(data_dir, f"{site_name}_input_list.jsonl")
+    logger.info("Preparing to start %s crawl. DATA_DIR=%s", site_name, data_dir)
     
     # 파일이 없으면 여러 위치에서 찾기
     search_paths = [
@@ -121,6 +124,7 @@ def start_crawling(
         os.path.join(os.getcwd(), f"{site_name}_input_list.jsonl"),  # 현재 작업 디렉토리
         f"{site_name}_input_list.jsonl",  # 상대 경로
     ]
+    logger.info("Search paths for %s data: %s", site_name, search_paths)
     
     found_file = None
     for path in search_paths:
@@ -129,11 +133,12 @@ def start_crawling(
             break
     
     if not found_file:
+        logger.error("Failed to locate %s data file. Checked: %s", site_name, search_paths)
         raise HTTPException(
             status_code=404,
             detail=f"{site_name}_input_list.jsonl 파일을 찾을 수 없습니다. "
                    f"확인한 경로: {', '.join(search_paths)}. "
-                   f"환경 변수 DATA_DIR을 설정하거나 파일을 프로젝트 루트에 배치하세요."
+                   f"환경 변수 DATA_DIR을 /opt/render/project/src/data 로 설정했는지 확인하세요."
         )
     
     config_file = found_file

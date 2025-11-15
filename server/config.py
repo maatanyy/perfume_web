@@ -19,13 +19,16 @@ def get_project_root():
 
 def get_data_dir():
     """데이터 파일 디렉토리 경로 반환"""
-    # 환경 변수로 명시적으로 설정된 경우
     data_dir = os.getenv("DATA_DIR")
     if data_dir:
         return os.path.abspath(data_dir)
-    
-    # 기본값: 프로젝트 루트
-    return get_project_root()
+
+    project_root = Path(get_project_root())
+    default_data_dir = project_root / "data"
+    if default_data_dir.exists():
+        return str(default_data_dir.resolve())
+
+    return str(project_root)
 
 
 def get_output_dir():
